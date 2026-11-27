@@ -106,9 +106,9 @@ async function renderedFrame(page: Page): Promise<string[]> {
   return colors;
 }
 
-async function screenshot(page: Page, state: string): Promise<void> {
+async function screenshot(page: Page, state: string, phase = 2): Promise<void> {
   await mkdir(screenshots, { recursive: true });
-  await page.screenshot({ path: `${screenshots}/phase2-${state}.png` });
+  await page.screenshot({ path: `${screenshots}/phase${phase}-${state}.png` });
 }
 
 async function expectViewportFit(page: Page, viewport: { width: number; height: number }): Promise<void> {
@@ -207,17 +207,38 @@ async function openHelp(page: Page): Promise<void> {
 for (const viewport of viewports) {
   gameTest(`plays Cedar to the bell with fitted controls at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await openGame(page);
     const desktopCapture = viewport.width === 1280;
     const mobileCapture = viewport.width === 375;
+    if (desktopCapture) {
+      await page.addInitScript(() => {
+        Object.defineProperty(window, 'localStorage', {
+          get() {
+            Reflect.set(window, 'clackLocalStorageAccessed', true);
+            throw new Error('localStorage is unavailable during the playtest');
+          },
+        });
+      });
+    }
+    const initialDay = page.waitForResponse((response) => response.url().endsWith('/api/day'));
+    await openGame(page);
+    expect((await initialDay).status()).toBe(200);
+    const cedar = page.getByRole('tab', { name: '1 Cedar' });
+    await cedar.click();
+    await expect(page.locator('#hud-day')).toHaveText('DAY 1');
     const button = page.locator(primary);
     const banner = page.locator(hint);
     const hudLeft = page.locator('.hud-left');
 
     await renderedFrame(page);
     await expectViewportFit(page, viewport);
-    if (desktopCapture) await screenshot(page, 'desktop-ready');
-    if (mobileCapture) await screenshot(page, 'mobile-ready');
+    if (desktopCapture) {
+      await screenshot(page, 'desktop-ready');
+      await screenshot(page, 'desktop-ready', 3);
+    }
+    if (mobileCapture) {
+      await screenshot(page, 'mobile-ready');
+      await screenshot(page, 'mobile-ready', 3);
+    }
 
     // Idle: the help button sits in the Restart slot, Restart stays hidden until rolling.
     const helpBtn = page.locator('#btn-help');
@@ -317,6 +338,11 @@ for (const viewport of viewports) {
     expect(response.status()).toBe(200);
     const payload: unknown = response.request().postDataJSON();
     expect(payload).toEqual({ day: 1, clackTicks: [300, 1122], endTick: expect.any(Number) });
+    if (desktopCapture) {
+      expect(await response.json()).toMatchObject({
+        day: 1, won: true, streak: 1, rank: 1, totalPlayers: 1, completedDays: [1],
+      });
+    }
     await expect(page.locator('.key-slot.collected')).toHaveCount(3);
     const dialog = page.getByRole('dialog', { name: 'Bell Rung' });
     await expect(dialog).toBeVisible();
@@ -334,6 +360,7 @@ for (const viewport of viewports) {
     if (desktopCapture) await screenshot(page, 'desktop-victory');
 
     if (desktopCapture) {
+      await screenshot(page, 'desktop-victory', 3);
       await page.evaluate(() => {
         let requests = 0;
         const denied = new DOMException('Denied', 'NotAllowedError');
@@ -373,6 +400,22 @@ for (const viewport of viewports) {
       await expect(button).toBeFocused();
       await page.evaluate(() => window.dispatchEvent(new Event('deny-test-clipboard')));
       await expect(page.locator(toast)).not.toHaveClass(/visible/);
+      expect(await page.evaluate(() => Reflect.has(window, 'clackLocalStorageAccessed'))).toBe(false);
+
+      const rehydration = page.waitForResponse((reply) => reply.url().endsWith('/api/day'));
+      await page.reload();
+      const hydrated = await rehydration;
+      expect(hydrated.status()).toBe(200);
+      expect(await hydrated.json()).toMatchObject({
+        completedDays: [1], bestClacksByDay: { 1: 2 }, streak: 1,
+      });
+      await expect(cedar).toHaveClass(/\bsolved\b/);
+      await cedar.click();
+      await expect(page.locator('#hud-day')).toHaveText('DAY 1');
+      await expect(cedar).toHaveClass(/\bsolved\b/);
+      expect(await page.evaluate(() => Reflect.has(window, 'clackLocalStorageAccessed'))).toBe(false);
+      await renderedFrame(page);
+      await screenshot(page, 'desktop-reloaded-solved', 3);
     }
   });
 }

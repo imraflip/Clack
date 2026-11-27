@@ -99,6 +99,21 @@ function bootstrap(): void {
     }
   };
   const communityStatsByDay = new Map<number, CommunityDayStats>();
+  const bestClacksByDay = new Map<number, number>();
+  const addBestClacks = (raw: Readonly<Record<number, number>>): void => {
+    for (const island of ISLANDS) {
+      const best = raw[island.day];
+      if (typeof best === 'number' && Number.isSafeInteger(best) && best >= 0) {
+        bestClacksByDay.set(island.day, best);
+      }
+    }
+  };
+  // Hydrated progression snapshot for upcoming result/launch cards (not rendered yet).
+  const placement: { streak: number; userRank: number | null; totalPlayers: number } = {
+    streak: 0,
+    userRank: null,
+    totalPlayers: 0,
+  };
   let lastVictoryShareText = '';
 
   const clearVictoryTimer = (): void => {
@@ -371,6 +386,10 @@ function bootstrap(): void {
             if (!res || disposed) return;
             addCompletedDays(res.completedDays);
             communityStatsByDay.set(res.day, res.communityStats);
+            if (res.bestClacks !== null) bestClacksByDay.set(res.day, res.bestClacks);
+            placement.streak = res.streak;
+            placement.userRank = res.rank;
+            placement.totalPlayers = res.totalPlayers;
             renderHud();
             if (hud.isVictoryOpen() && currentLevel.day === res.day) {
               hud.updateVictoryCommunityStats(res.communityStats);
@@ -415,6 +434,10 @@ function bootstrap(): void {
 
       addCompletedDays(body.completedDays);
       communityStatsByDay.set(body.day, body.communityStats);
+      addBestClacks(body.bestClacksByDay);
+      placement.streak = body.streak;
+      placement.userRank = body.userRank;
+      placement.totalPlayers = body.totalPlayers;
 
       if (
         !userInteracted &&

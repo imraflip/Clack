@@ -1,17 +1,19 @@
 import { Hono } from 'hono';
 import type { TriggerResponse } from '@devvit/web/shared';
 import { context } from '@devvit/web/server';
-import { createDailyPost } from '../core/post';
+import { ensureScheduledDailyPost } from '../core/post';
 
 export const triggers = new Hono();
 
 triggers.post('/on-app-install', async (c) => {
   try {
-    const { postId, day } = await createDailyPost();
+    const { created, postId, day } = await ensureScheduledDailyPost();
     return c.json<TriggerResponse>(
       {
         status: 'success',
-        message: `Clack Day ${day} post ${postId} created in r/${context.subredditName}`,
+        message: created
+          ? `Clack Day ${day} post ${postId ?? ''} created in r/${context.subredditName}`
+          : `Clack Day ${day} post already exists in r/${context.subredditName}`,
       },
       200
     );

@@ -38,12 +38,16 @@ export type DayResponse = {
   readonly userBestClacks: number | null;
   readonly userCleared: boolean;
   readonly communityStats: CommunityDayStats;
+  readonly streak: number;
+  readonly userRank: number | null;
+  readonly totalPlayers: number;
 };
 
 export type RunSubmissionRequest = {
   readonly day: number;
   readonly clackTicks: readonly number[];
   readonly endTick: number;
+  readonly runCount?: number;
 };
 
 export type RunSubmissionResponse = {
@@ -60,6 +64,10 @@ export type RunSubmissionResponse = {
   readonly isNewBest: boolean;
   readonly completedDays: readonly number[];
   readonly communityStats: CommunityDayStats;
+  readonly streak: number;
+  readonly rank: number | null;
+  readonly percentile: number | null;
+  readonly totalPlayers: number;
 };
 
 export type ApiErrorResponse = {
@@ -72,18 +80,26 @@ export type ApiErrorResponse = {
 // ---------------------------------------------------------------------------
 
 function isRecord(value: unknown): value is object {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isNonNegativeInt(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isPositiveInt(value: unknown): value is number {
+  return isNonNegativeInt(value) && value > 0;
+}
+
+function isNullableRank(value: unknown): boolean {
+  return value === null || isPositiveInt(value);
 }
 
 export function readDayList(value: unknown): number[] {
   const out: number[] = [];
   if (!Array.isArray(value)) return out;
   for (const item of value) {
-    if (isNonNegativeInt(item) && item >= 1) out.push(item);
+    if (isPositiveInt(item)) out.push(item);
   }
   return out;
 }
@@ -94,7 +110,7 @@ export function isCommunityDayStats(value: unknown): value is CommunityDayStats 
   return (
     isNonNegativeInt(Reflect.get(value, 'totalClears')) &&
     isNonNegativeInt(Reflect.get(value, 'parClears')) &&
-    (rate === null || typeof rate === 'number')
+    (rate === null || (isNonNegativeInt(rate) && rate <= 100))
   );
 }
 
@@ -103,47 +119,67 @@ export function isDayResponse(value: unknown): value is DayResponse {
   const day = Reflect.get(value, 'day');
   const level = Reflect.get(value, 'level');
   return (
-    isNonNegativeInt(day) &&
+    isPositiveInt(day) &&
     isRecord(level) &&
     typeof Reflect.get(level, 'id') === 'string' &&
     Array.isArray(Reflect.get(value, 'completedDays')) &&
-    isCommunityDayStats(Reflect.get(value, 'communityStats'))
+    isCommunityDayStats(Reflect.get(value, 'communityStats')) &&
+    isNonNegativeInt(Reflect.get(value, 'streak')) &&
+    isNullableRank(Reflect.get(value, 'userRank')) &&
+    isNonNegativeInt(Reflect.get(value, 'totalPlayers'))
   );
 }
 
 export function isRunSubmissionResponse(value: unknown): value is RunSubmissionResponse {
   if (!isRecord(value)) return false;
+  const percentile = Reflect.get(value, 'percentile');
   return (
     Reflect.get(value, 'verified') === true &&
-    isNonNegativeInt(Reflect.get(value, 'day')) &&
+    isPositiveInt(Reflect.get(value, 'day')) &&
     typeof Reflect.get(value, 'won') === 'boolean' &&
     isNonNegativeInt(Reflect.get(value, 'clacks')) &&
     Array.isArray(Reflect.get(value, 'completedDays')) &&
-    isCommunityDayStats(Reflect.get(value, 'communityStats'))
+    isCommunityDayStats(Reflect.get(value, 'communityStats')) &&
+    isNonNegativeInt(Reflect.get(value, 'streak')) &&
+    isNullableRank(Reflect.get(value, 'rank')) &&
+    (percentile === null || (isPositiveInt(percentile) && percentile <= 100)) &&
+    isNonNegativeInt(Reflect.get(value, 'totalPlayers'))
   );
 }
 
-/**
- * Strictly validates an untrusted run payload. Returns null on any violation:
- * non-integer day, non-array / oversize clackTicks, negative / float / NaN ticks,
- * or an endTick outside [0, MAX_REPLAY_TICKS].
- */
+export function parseDayQuery(raw: string | undefined): number | null {
+  if (typeof raw !== 'string' || !/^[1-9][0-9]*$/.test(raw)) return null;
+  const day = Number(raw);
+  return isPositiveInt(day) ? day : null;
+}
+
+/** Validates the replay envelope independently of where the replay ends. */
 export function parseRunSubmissionRequest(body: unknown): RunSubmissionRequest | null {
   if (!isRecord(body)) return null;
+  if (['__proto__', 'constructor', 'prototype'].some((key) => Object.hasOwn(body, key))) {
+    return null;
+  }
+  if (!['day', 'clackTicks', 'endTick'].every((key) => Object.hasOwn(body, key))) return null;
 
   const day = Reflect.get(body, 'day');
   const clackTicksVal = Reflect.get(body, 'clackTicks');
   const endTick = Reflect.get(body, 'endTick');
 
-  if (typeof day !== 'number' || !Number.isInteger(day)) return null;
+  if (!isPositiveInt(day)) return null;
   if (!isNonNegativeInt(endTick) || endTick > MAX_REPLAY_TICKS) return null;
   if (!Array.isArray(clackTicksVal) || clackTicksVal.length > MAX_CLACK_EVENTS) return null;
 
   const clackTicks: number[] = [];
   for (const item of clackTicksVal) {
-    if (!isNonNegativeInt(item)) return null;
-    clackTicks.push(item);
+    if (!isNonNegativeInt(item) || item > MAX_REPLAY_TICKS) return null;
+    // `+ 0` canonicalizes JSON `-0` to `0` so parsed ticks are sign-stable.
+    clackTicks.push(item + 0);
   }
+  const canonicalEndTick = endTick + 0;
 
-  return { day, clackTicks, endTick };
+  if (!Object.hasOwn(body, 'runCount')) return { day, clackTicks, endTick: canonicalEndTick };
+  const runCount = Reflect.get(body, 'runCount');
+  return isPositiveInt(runCount)
+    ? { day, clackTicks, endTick: canonicalEndTick, runCount }
+    : null;
 }
