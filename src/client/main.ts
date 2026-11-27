@@ -31,6 +31,8 @@ const FIXED_DT = 1 / SIM_HZ;
 const MAX_FRAME_DT = 0.05;
 const FALL_INITIAL_VEL_Y = -1.2;
 const FALL_GRAVITY = 14.5;
+// Below this depth the marble is deep inside the pit: hide it and stop integrating the fall.
+const FALL_HIDE_Y = -8;
 
 function getReducedMotionPreference(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -136,6 +138,7 @@ function bootstrap(): void {
     }
 
     hud.hideHint();
+    hud.hideToast();
     hud.closeVictory();
     renderHud();
   };
@@ -160,10 +163,14 @@ function bootstrap(): void {
   };
 
   const triggerPrimaryAction = (): void => {
+    // The bell has rung (or the guide is open): only that dialog's own controls may act until it closes.
+    if (hud.isVictoryOpen() || hud.isHelpOpen() || simState.phase === 'won') return;
     userInteracted = true;
     audio.unlock();
+    // One shared press pulse for the button, canvas taps and Space/Enter alike.
+    hud.pulsePrimaryButton();
     if (simState.phase === 'falling' || simState.phase === 'locked') {
-      // Tap-to-skip the 1-second fail reset delay for snappy retries
+      // A failed run holds on Tap to Retry until the player deliberately retries.
       resetRun(false);
       return;
     }
@@ -224,18 +231,22 @@ function bootstrap(): void {
       renderHud();
     },
     onCopyResult: () => {
-      if (!lastVictoryShareText) return;
+      if (!lastVictoryShareText || !hud.isVictoryOpen()) return;
+      const wonState = simState;
+      const reportCopy = (message: string): void => {
+        if (!disposed && simState === wonState && hud.isVictoryOpen()) notifyClipboardToast(message);
+      };
       if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
         void navigator.clipboard
           .writeText(lastVictoryShareText)
           .then(() => {
-            notifyClipboardToast(UI_TEXTS.copyResultToast);
+            reportCopy(UI_TEXTS.copyResultToast);
           })
           .catch(() => {
-            notifyClipboardToast(UI_TEXTS.copyResultFailedToast);
+            reportCopy(UI_TEXTS.copyResultFailedToast);
           });
       } else {
-        notifyClipboardToast(UI_TEXTS.copyResultFailedToast);
+        reportCopy(UI_TEXTS.copyResultFailedToast);
       }
     },
     onReplay: () => {
@@ -250,6 +261,10 @@ function bootstrap(): void {
 
   const inputCtrl = createInputController(canvasWrap, {
     isVictoryOpen: () => hud.isVictoryOpen(),
+    isHelpOpen: () => hud.isHelpOpen(),
+    onCloseHelp: () => {
+      hud.closeHelp();
+    },
     onPointerGesture: () => {
       audio.unlock();
     },
@@ -310,13 +325,14 @@ function bootstrap(): void {
           fallVelY = FALL_INITIAL_VEL_Y;
           diorama.pieces.contactShadow.visible = false;
           audio.playTrapdoor();
-          hud.showToast(UI_TEXTS.toastTrapdoor, 1400);
+          // Persistent: the reason stays readable until the player taps Tap to Retry (resetRun hides it).
+          hud.showToast(UI_TEXTS.toastTrapdoor, null);
           renderHud();
           break;
         case 'locked':
           diorama.pieces.triggerBellLocked();
           audio.playLockedBell();
-          hud.showToast(UI_TEXTS.toastLockedBell, 1500);
+          hud.showToast(UI_TEXTS.toastLockedBell, null);
           renderHud();
           break;
         case 'win': {
@@ -376,7 +392,7 @@ function bootstrap(): void {
           break;
         }
         case 'auto-reset-ready':
-          resetRun(false);
+          // Never auto-reset: the run holds on Tap to Retry so a mashed tap cannot become a launch.
           break;
         case 'gate-pass':
           diorama.pieces.triggerGatePass(ev.nodeId);
@@ -492,9 +508,13 @@ function bootstrap(): void {
             boostFrac,
             reducedMotion
           );
-        } else if (simState.phase === 'falling') {
+        } else if (simState.phase === 'falling' && diorama.pieces.marble.visible) {
           fallVelY -= FALL_GRAVITY * dt;
           diorama.pieces.marble.position.y += fallVelY * dt;
+          if (diorama.pieces.marble.position.y < FALL_HIDE_Y) {
+            // resetVisuals() restores visibility on retry.
+            diorama.pieces.marble.visible = false;
+          }
         }
       }
     }

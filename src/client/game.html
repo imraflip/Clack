@@ -35,6 +35,14 @@
             <span class="counter-par" id="hud-par"></span>
           </div>
 
+          <button
+            class="pill icon-btn idle-only"
+            id="btn-help"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="help-overlay"
+            aria-expanded="false"
+          ></button>
           <button class="pill icon-btn rolling-only" id="btn-restart" type="button"></button>
 
           <button class="pill icon-btn" id="btn-mute" type="button" aria-pressed="false"></button>
@@ -80,6 +88,7 @@
           </div>
         </div>
         <p class="victory-community" id="victory-community"></p>
+        <span class="visually-hidden" id="victory-status" role="status"></span>
         <button class="v-btn share" id="btn-copy-result" type="button">
           <span id="btn-copy-icon" aria-hidden="true"></span>
           <span id="btn-copy-label"></span>
@@ -94,6 +103,25 @@
             <span id="btn-next-icon" aria-hidden="true"></span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <div
+      id="help-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="help-title"
+      aria-hidden="true"
+      inert
+    >
+      <div class="help-card">
+        <div class="help-head">
+          <span class="help-badge" id="help-badge" aria-hidden="true"></span>
+          <h2 class="help-title" id="help-title"></h2>
+          <button class="icon-btn help-close" id="btn-help-close" type="button"></button>
+        </div>
+        <ol class="help-steps" id="help-steps"></ol>
+        <ul class="help-controls" id="help-controls"></ul>
       </div>
     </div>
 
