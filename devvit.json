@@ -1,6 +1,10 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "play-clack",
+  "sourceIgnores": [
+    ".internal/**",
+    "e2e/**"
+  ],
   "post": {
     "dir": "dist/client",
     "entrypoints": {
@@ -17,26 +21,22 @@
     "dir": "dist/server",
     "entry": "index.cjs"
   },
+  "permissions": {
+    "reddit": {
+      "enable": true
+    },
+    "redis": true
+  },
   "menu": {
     "items": [
       {
-        "label": "Create a new post",
-        "description": "play-clack",
+        "label": "Create a new Clack post",
+        "description": "Publish today's Clack daily marble puzzle post",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/post-create"
-      },
-      {
-        "label": "Example form",
-        "description": "Show a simple form",
-        "location": "subreddit",
-        "forUserType": "moderator",
-        "endpoint": "/internal/menu/example-form"
       }
     ]
-  },
-  "forms": {
-    "exampleForm": "/internal/form/example-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install"

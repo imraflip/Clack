@@ -1,30 +1,47 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" type="text/css" href="splash.css" />
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
-    />
-    <title>devvit</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>CLACK</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" type="text/css" href="./splash.css" />
   </head>
-  <body class="app">
-    <img class="snoo" src="/snoo.png" alt="Snoo" />
-    <div class="content">
-      <h1 class="title" id="title"></h1>
-      <p class="description">Edit <span class="code">src/client/splash.ts</span> to get started.</p>
-    </div>
-    <div>
-      <button class="start-button" id="start-button">Start</button>
-    </div>
-    <footer class="footer">
-      <div class="docs-link" tabindex="0" id="docs-link">Docs</div>
-      <span class="divider">|</span>
-      <div class="docs-link" tabindex="0" id="playtest-link">r/Devvit</div>
-      <span class="divider">|</span>
-      <div class="docs-link" tabindex="0" id="discord-link">Discord</div>
-    </footer>
-    <script type="module" src="splash.ts" defer></script>
+  <body>
+    <main class="splash-shell">
+      <section class="splash-card" aria-labelledby="splash-title">
+        <div class="splash-meta">
+          <span class="day-pill" id="splash-day">DAY 1</span>
+          <span class="biome-badge" id="splash-biome">
+            <span class="biome-dot" id="splash-dot" aria-hidden="true"></span>
+            <span id="splash-biome-label">Cedar Biome</span>
+          </span>
+        </div>
+
+        <div class="splash-thumb-frame">
+          <img
+            class="splash-thumb"
+            id="splash-thumb"
+            src="./thumbs/cedar.png"
+            alt="Clack Cedar Courtyard floating island preview"
+            width="360"
+            height="216"
+            decoding="async"
+          />
+        </div>
+
+        <h1 class="splash-title" id="splash-title">Cedar Courtyard</h1>
+        <p class="splash-par" id="splash-par">Par 2</p>
+        <p class="splash-community" id="splash-community"></p>
+        <p class="splash-subtitle" id="splash-subtitle"></p>
+
+        <button class="play-btn" id="splash-play-btn" type="button">
+          <span class="play-icon" id="splash-play-icon" aria-hidden="true"></span>
+          <span id="splash-play-label">Play Today</span>
+        </button>
+      </section>
+    </main>
+
+    <script type="module" src="./splash.ts"></script>
   </body>
 </html>

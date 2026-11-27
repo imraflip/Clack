@@ -1,35 +1,102 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" type="text/css" href="game.css" />
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
     />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="full-screen" content="yes" />
-    <meta name="x5-fullscreen" content="true" />
-    <meta name="360-fullscreen" content="true" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>CLACK</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" type="text/css" href="./game.css" />
   </head>
   <body>
-    <canvas id="bg"></canvas>
-    <div class="overlay">
-      <h1 class="title" id="title"></h1>
-      <p class="description">Edit <span class="code">src/client/splash.ts</span> to get started.</p>
-      <div class="counter-row">
-        <!-- Counter buttons removed. Value updated programmatically. -->
-        <span class="counter-value" id="counter-value">0</span>
+    <div id="sky-backdrop" aria-hidden="true"></div>
+    <div id="canvas-wrap" aria-label="Clack floating diorama canvas"></div>
+
+    <div id="hud">
+      <div class="hud-top">
+        <div class="hud-left">
+          <div class="pill biome-bar" id="biome-bar" role="tablist"></div>
+          <div class="pill title-pill">
+            <span class="title-day" id="hud-day"></span>
+            <span class="title-name" id="hud-name"></span>
+            <span class="title-sep" aria-hidden="true"></span>
+            <span class="title-par" id="hud-par-tag"></span>
+          </div>
+        </div>
+
+        <div class="hud-right">
+          <div class="pill keys-pill" id="hud-keys"></div>
+
+          <div class="pill counter-pill" aria-label="Clacks used and par">
+            <span class="counter-label" id="hud-clacks-label"></span>
+            <span class="counter-val" id="hud-clacks">0</span>
+            <span class="counter-par" id="hud-par"></span>
+          </div>
+
+          <button class="pill icon-btn rolling-only" id="btn-restart" type="button"></button>
+
+          <button class="pill icon-btn" id="btn-mute" type="button" aria-pressed="false"></button>
+        </div>
       </div>
-      <footer class="footer">
-        <div class="docs-link" tabindex="0" id="docs-link">Docs</div>
-        <span class="divider">|</span>
-        <div class="docs-link" tabindex="0" id="playtest-link">r/Devvit</div>
-        <span class="divider">|</span>
-        <div class="docs-link" tabindex="0" id="discord-link">Discord</div>
-      </footer>
+
+      <div class="hud-center">
+        <div class="floating-banner hint" id="hint-banner" role="status"></div>
+        <div class="floating-banner" id="toast-banner" role="status"></div>
+      </div>
+
+      <div class="hud-bottom">
+        <button id="primary-btn" type="button">
+          <span class="btn-mark" id="primary-mark" aria-hidden="true"></span>
+          <span id="primary-label"></span>
+        </button>
+      </div>
     </div>
-    <script type="module" src="game.ts" defer></script>
+
+    <div
+      id="victory-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="victory-title"
+      aria-hidden="true"
+      inert
+    >
+      <div class="victory-card">
+        <div class="victory-badge">
+          <span id="victory-badge-icon" aria-hidden="true"></span>
+          <span id="victory-rating"></span>
+        </div>
+        <h2 class="victory-title" id="victory-title"></h2>
+        <p class="victory-sub" id="victory-sub"></p>
+        <div class="victory-stats">
+          <div class="stat-box">
+            <div class="stat-label" id="v-clacks-label"></div>
+            <div class="stat-value" id="v-clacks">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label" id="v-par-label"></div>
+            <div class="stat-value" id="v-par">0</div>
+          </div>
+        </div>
+        <p class="victory-community" id="victory-community"></p>
+        <button class="v-btn share" id="btn-copy-result" type="button">
+          <span id="btn-copy-icon" aria-hidden="true"></span>
+          <span id="btn-copy-label"></span>
+        </button>
+        <div class="victory-actions">
+          <button class="v-btn secondary" id="btn-replay" type="button">
+            <span id="btn-replay-icon" aria-hidden="true"></span>
+            <span id="btn-replay-label"></span>
+          </button>
+          <button class="v-btn primary" id="btn-next" type="button">
+            <span id="btn-next-label"></span>
+            <span id="btn-next-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
   </body>
 </html>

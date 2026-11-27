@@ -22,3 +22,5 @@ playwright/.cache/
 *.swp
 .DS_Store
 Thumbs.db
+# Internal governance & prototype reference (never committed, uploaded, or bundled)
+.internal/
